@@ -405,7 +405,7 @@ tbody tr{transition:background var(--dur) var(--ease)}
 .cam{position:relative;background:#000;aspect-ratio:4/3;overflow:hidden}
 .cam.camoff{aspect-ratio:auto;max-height:none}
 .cam video{width:100%;height:100%;object-fit:cover;display:block}
-.frame{position:absolute;left:8%;right:8%;top:24%;height:50%;border:2px solid rgba(255,201,62,.95);border-radius:14px;box-shadow:0 0 0 2000px rgba(0,0,0,.4)}
+.frame{position:absolute;left:6%;right:6%;top:19%;height:62%;border:2px solid rgba(255,201,62,.95);border-radius:14px;box-shadow:0 0 0 2000px rgba(0,0,0,.4)}
 .frame::before,.frame::after{content:"";position:absolute;width:26px;height:26px;border:3px solid var(--accent);border-radius:6px}
 .frame::before{top:-3px;left:-3px;border-right:0;border-bottom:0}
 .frame::after{bottom:-3px;right:-3px;border-left:0;border-top:0}
@@ -770,91 +770,128 @@ const byId=id=>S.products.find(p=>p.id===id);
 const L_PAT=[[3,2,1,1],[2,2,2,1],[2,1,2,2],[1,4,1,1],[1,1,3,2],[1,2,3,1],[1,1,1,4],[1,3,1,2],[1,2,1,3],[3,1,1,2]];
 const G_PAT=L_PAT.map(p=>[...p].reverse());
 const FIRST=[0x00,0x0B,0x0D,0x0E,0x13,0x19,0x1C,0x15,0x16,0x1A];
+const MAX_AVG_VAR=0.44, MAX_ONE_VAR=0.7;
 
-function matchPat(w,table){
-  const tot=w[0]+w[1]+w[2]+w[3];
-  if(tot<=0) return -1;
-  const u=tot/7, c=w.map(x=>Math.round(x/u));
-  if(c.reduce((a,b)=>a+b,0)!==7) return -1;
-  for(let d=0;d<10;d++){
-    const t=table[d];
-    if(t[0]===c[0]&&t[1]===c[1]&&t[2]===c[2]&&t[3]===c[3]){
-      // ince hata payı kontrolü
-      let err=0;for(let i=0;i<4;i++)err+=Math.abs(w[i]/u-t[i]);
-      if(err<1.4) return d;
-    }
+/* Desen benzerliği: genişlikleri tam sayıya yuvarlamak yerine oransal sapmaya bakılır.
+   Bulanık ve düşük çözünürlüklü kareler bu sayede okunabilir. */
+function patVar(c,p,len){
+  let tot=0,pl=0;
+  for(let i=0;i<len;i++){tot+=c[i];pl+=p[i];}
+  if(tot<pl) return Infinity;
+  const unit=tot/pl, maxv=unit*MAX_ONE_VAR;
+  let sum=0;
+  for(let i=0;i<len;i++){
+    const exp=p[i]*unit, d=c[i]>exp?c[i]-exp:exp-c[i];
+    if(d>maxv) return Infinity;
+    sum+=d;
   }
-  return -1;
+  return sum/tot;
+}
+function digitR(w){ // sağ taraf + EAN-8 sol tarafı (R ve L genişlikleri aynıdır)
+  let best=-1,bv=MAX_AVG_VAR;
+  for(let d=0;d<10;d++){const v=patVar(w,L_PAT[d],4);if(v<bv){bv=v;best=d;}}
+  return best;
+}
+function digitLG(w){ // EAN-13 sol tarafı: L mi G mi kodlanmış
+  let best=-1,bv=MAX_AVG_VAR,g=0;
+  for(let d=0;d<10;d++){
+    let v=patVar(w,L_PAT[d],4); if(v<bv){bv=v;best=d;g=0;}
+    v=patVar(w,G_PAT[d],4);     if(v<bv){bv=v;best=d;g=1;}
+  }
+  return best<0?null:{d:best,g};
 }
 function checkDigit(digits){ // sağdan 3,1,3,1...
   let s=0;
   for(let i=digits.length-1,w=3;i>=0;i--,w=(w===3?1:3)) s+=digits[i]*w;
   return (10-(s%10))%10;
 }
-function runsFromLine(lum,w){
-  let min=255,max=0;
-  for(let i=0;i<w;i++){const v=lum[i];if(v<min)min=v;if(v>max)max=v;}
-  if(max-min<45) return null;
-  const th=(min+max)/2;
-  const runs=[];let dark=lum[0]<th,len=0;
-  for(let i=0;i<w;i++){
-    const d=lum[i]<th;
+
+/* Blok tabanlı yerel eşikleme.
+   Tek bir genel eşik, gölge veya eşit olmayan aydınlatmada barkodun yarısını
+   yutuyordu; burada eşik her blokta komşularıyla birlikte yeniden hesaplanır. */
+function runsOf(lum,w){
+  const B=Math.max(6,Math.round(w/40)), nb=Math.ceil(w/B);
+  const mn=new Uint8Array(nb).fill(255), mx=new Uint8Array(nb);
+  for(let i=0;i<w;i++){const b=(i/B)|0,v=lum[i];if(v<mn[b])mn[b]=v;if(v>mx[b])mx[b]=v;}
+  const th=new Int16Array(nb);
+  let any=false;
+  for(let b=0;b<nb;b++){
+    let lo=255,hi=0;
+    for(let k=b>0?b-1:0,e=b+1<nb?b+1:nb-1;k<=e;k++){if(mn[k]<lo)lo=mn[k];if(mx[k]>hi)hi=mx[k];}
+    if(hi-lo>=18){th[b]=(lo+hi)>>1;any=true;}else{th[b]=-1;}
+  }
+  if(!any) return null; // düz yüzey, barkod yok
+  const runs=[];
+  let dark=th[0]>=0&&lum[0]<th[0], len=1;
+  for(let i=1;i<w;i++){
+    const t=th[(i/B)|0];
+    const d=t>=0&&lum[i]<t;
     if(d===dark)len++;else{runs.push({len,dark});dark=d;len=1;}
   }
   runs.push({len,dark});
   return runs;
 }
+
 function tryDecode(runs){
   const n=runs.length;
-  for(const spec of [{total:59,left:6,right:6,type:13},{total:43,left:4,right:4,type:8}]){
-    for(let s=0;s+spec.total<=n;s++){
+  for(const sp of [{tot:59,half:6,type:13,mods:95},{tot:43,half:4,type:8,mods:67}]){
+    for(let s=0;s+sp.tot<=n;s++){
       if(!runs[s].dark) continue;
       const g=[runs[s].len,runs[s+1].len,runs[s+2].len];
+      if(patVar(g,[1,1,1],3)>MAX_AVG_VAR) continue;      // başlangıç kılavuzu 101
       const mod=(g[0]+g[1]+g[2])/3;
-      if(mod<0.8) continue;
-      if(g.some(x=>x<mod*0.55||x>mod*1.75)) continue;
-      const span=runs.slice(s,s+spec.total).reduce((a,r)=>a+r.len,0);
-      const expect=(spec.type===13?95:67)*mod;
-      if(span<expect*0.72||span>expect*1.4) continue;
-      // sol
+      if(mod<0.6) continue;
+      let span=0; for(let k=s;k<s+sp.tot;k++) span+=runs[k].len;
+      if(span<sp.mods*mod*0.62||span>sp.mods*mod*1.6) continue;
+      const mid=s+3+sp.half*4;                            // orta kılavuz 01010
+      if(patVar([runs[mid].len,runs[mid+1].len,runs[mid+2].len,runs[mid+3].len,runs[mid+4].len],[1,1,1,1,1],5)>MAX_AVG_VAR) continue;
+      const e=s+sp.tot-3;                                 // bitiş kılavuzu 101
+      if(patVar([runs[e].len,runs[e+1].len,runs[e+2].len],[1,1,1],3)>MAX_AVG_VAR) continue;
+      // Sessiz bölge: EAN standardı kodun iki yanının boş olmasını şart koşar.
+      // Rastgele çizgili desenlerin barkod sanılmasını engelleyen asıl kontrol budur.
+      const qz=mod*2.5;
+      if(s>0 && (runs[s-1].dark || runs[s-1].len<qz)) continue;
+      if(s+sp.tot<n && (runs[s+sp.tot].dark || runs[s+sp.tot].len<qz)) continue;
+
       let i=s+3, digits=[], parity=0, ok=true;
-      for(let k=0;k<spec.left;k++){
+      for(let k=0;k<sp.half;k++){
         const w=[runs[i].len,runs[i+1].len,runs[i+2].len,runs[i+3].len];
-        let d=matchPat(w,L_PAT), bit=0;
-        if(d<0&&spec.type===13){d=matchPat(w,G_PAT);bit=1;}
-        if(d<0){ok=false;break;}
-        digits.push(d); parity=(parity<<1)|bit; i+=4;
+        if(sp.type===13){
+          const r=digitLG(w);
+          if(!r){ok=false;break;}
+          digits.push(r.d); parity=(parity<<1)|r.g;
+        }else{
+          const d=digitR(w);
+          if(d<0){ok=false;break;}
+          digits.push(d);
+        }
+        i+=4;
       }
       if(!ok) continue;
-      i+=5; // orta guard
-      for(let k=0;k<spec.right;k++){
-        if(i+3>=n){ok=false;break;}
+      i+=5; // orta kılavuzu atla
+      for(let k=0;k<sp.half;k++){
         const w=[runs[i].len,runs[i+1].len,runs[i+2].len,runs[i+3].len];
-        const d=matchPat(w,L_PAT);
+        const d=digitR(w);
         if(d<0){ok=false;break;}
         digits.push(d); i+=4;
       }
       if(!ok) continue;
-      if(spec.type===13){
-        const f=FIRST.indexOf(parity);
+      if(sp.type===13){
+        const f=FIRST.indexOf(parity); // eşlik deseni ilk haneyi verir
         if(f<0) continue;
         digits.unshift(f);
       }
-      const body=digits.slice(0,-1);
-      if(checkDigit(body)!==digits[digits.length-1]) continue;
+      if(checkDigit(digits.slice(0,-1))!==digits[digits.length-1]) continue;
       return digits.join('');
     }
   }
   return null;
 }
 function decodeLine(lum,w){
-  let r=runsFromLine(lum,w);
+  const r=runsOf(lum,w);
   if(!r) return null;
-  let v=tryDecode(r);
-  if(v) return v;
-  return tryDecode(r.slice().reverse());
+  return tryDecode(r)||tryDecode(r.slice().reverse()); // baş aşağı tutulmuş barkod
 }
-
 /* =========================================================
    4. Kamera / barkod okuma modalı
    ========================================================= */
@@ -881,7 +918,7 @@ const Scanner={
         <label class="f"><span>Okumuyor mu? Barkodu elle yazın</span>
           <input id="manual" class="mono" inputmode="numeric" enterkeyhint="done" placeholder="8690000000000" autocomplete="off"></label>
         <button class="btn wide" id="manualOk" type="button">${ICON.check}Bu barkodu kullan</button>
-        <p style="font-size:12.5px;color:var(--muted);margin:14px 0 0;line-height:1.6">Barkodu çerçeveye yatay ve net gelecek şekilde tutun. Ürün paketi parlıyorsa açıyı biraz değiştirin.</p>
+        <p style="font-size:12.5px;color:var(--muted);margin:14px 0 0;line-height:1.6">Barkodu çerçeveye getirin — <b>yatay ya da dikey</b> tutabilirsiniz, baş aşağı da olabilir. Ürün paketi parlıyorsa açıyı biraz değiştirin ya da Işık'ı açın.</p>
       </div>
     </div>`;
     $('#modals').append(ovl);this.el=ovl;
@@ -892,8 +929,13 @@ const Scanner={
     $('#torchBtn',ovl).onclick=()=>this.torch();
     this.video=$('#vid',ovl);
     this.cvs=document.createElement('canvas');this.ctx=this.cvs.getContext('2d',{willReadFrequently:true});
+    this.det=null;
     if(this.supportsNative()){
-      try{this.det=new BarcodeDetector({formats:['ean_13','ean_8','upc_a','upc_e','code_128','code_39','itf','qr_code']});}catch(e){this.det=null;}
+      try{
+        const sup=await BarcodeDetector.getSupportedFormats();
+        const want=['ean_13','ean_8','upc_a','upc_e','code_128','code_39','itf'].filter(f=>sup.includes(f));
+        if(want.length) this.det=new BarcodeDetector({formats:want});
+      }catch(e){this.det=null;}
     }
     $('#camMode',ovl).textContent=this.det?'hızlı mod':'uyumluluk modu';
     await this.start();
@@ -901,10 +943,17 @@ const Scanner={
   async start(devId){
     try{
       const c=devId?{deviceId:{exact:devId}}:{facingMode:{ideal:'environment'}};
-      c.width={ideal:1280};c.height={ideal:720};
+      // Barkod ince çubuklardan oluşur: çözünürlük ne kadar yüksekse okuma o kadar iyi.
+      c.width={ideal:1920};c.height={ideal:1080};c.frameRate={ideal:30};
+      c.advanced=[{focusMode:'continuous'}];
       this.stream=await navigator.mediaDevices.getUserMedia({video:c,audio:false});
       this.video.srcObject=this.stream;
       await this.video.play().catch(()=>{});
+      try{ // destekleyen cihazlarda sürekli otomatik odak
+        const tr=this.stream.getVideoTracks()[0];
+        const cap=tr.getCapabilities?tr.getCapabilities():{};
+        if(cap.focusMode&&cap.focusMode.includes('continuous')) await tr.applyConstraints({advanced:[{focusMode:'continuous'}]});
+      }catch(e){}
       try{this.devices=(await navigator.mediaDevices.enumerateDevices()).filter(d=>d.kind==='videoinput');}catch(e){}
       $('#camMsg',this.el).textContent='Barkodu çerçeveye getirin';
       this.loop();
@@ -938,42 +987,76 @@ const Scanner={
   loop(){
     const step=async()=>{
       if(!this.stream) return;
+      const t0=(typeof performance!=='undefined'?performance.now():Date.now());
       try{
         const v=this.video;
         if(v.readyState>=2&&v.videoWidth){
-          let found=null;
+          let done=false;
           if(this.det){
-            try{const r=await this.det.detect(v);if(r&&r.length)found=r[0].rawValue;}catch(e){this.det=null;}
+            try{
+              const r=await this.det.detect(v);
+              if(r&&r.length){this.hit(r[0].rawValue,1,true);done=true;}
+            }catch(e){this.det=null;}
           }
-          if(!found) found=this.scanFrame();
-          if(found) this.hit(found);
+          if(!done){
+            const r=this.scanFrame();
+            if(r) this.hit(r.code,r.votes,false);
+          }
         }
       }catch(e){}
-      this.timer=setTimeout(step,this.det?140:90);
+      // işlem süresi kadar bekle: hızlı cihazda sık, yavaş cihazda seyrek tara
+      const dt=(typeof performance!=='undefined'?performance.now():Date.now())-t0;
+      this.timer=setTimeout(step,Math.max(60,Math.min(220,dt)));
     };
     step();
   },
+  /* Kareyi tarar. Önceki sürüm kareyi 640 piksele küçültüp yalnızca 11 yatay
+     satır okuyordu; ince çubuklar bu küçültmede kaybolduğu ve telefon 90°
+     çevrildiğinde hiçbir yatay satır barkodu kesmediği için okuma tutmuyordu.
+     Artık daha yüksek çözünürlükte, hem yatay hem dikey taranıyor. */
   scanFrame(){
-    const v=this.video,W=640;
-    const H=Math.round(v.videoHeight/v.videoWidth*W)||480;
-    if(this.cvs.width!==W){this.cvs.width=W;this.cvs.height=H;}
-    this.ctx.drawImage(v,0,0,W,H);
-    const lines=11,top=Math.round(H*0.22),bot=Math.round(H*0.78);
-    for(let i=0;i<lines;i++){
-      const y=Math.round(top+(bot-top)*(i/(lines-1)));
-      const d=this.ctx.getImageData(0,y,W,1).data;
-      const lum=new Uint8Array(W);
-      for(let x=0;x<W;x++){const o=x*4;lum[x]=(d[o]*299+d[o+1]*587+d[o+2]*114)/1000;}
-      const code=decodeLine(lum,W);
-      if(code) return code;
+    const v=this.video, vw=v.videoWidth, vh=v.videoHeight;
+    if(!vw||!vh) return null;
+    // ilgi alanı: karenin ortası (kılavuz çerçeveden biraz cömert)
+    const rx=Math.round(vw*0.02), ry=Math.round(vh*0.06);
+    const rw=vw-rx*2, rh=vh-ry*2;
+    const CW=Math.min(800,rw), CH=Math.max(120,Math.round(rh*CW/rw));
+    if(this.cvs.width!==CW||this.cvs.height!==CH){this.cvs.width=CW;this.cvs.height=CH;}
+    this.ctx.drawImage(v,rx,ry,rw,rh,0,0,CW,CH);
+    const d=this.ctx.getImageData(0,0,CW,CH).data;
+    if(!this.gray||this.gray.length!==CW*CH) this.gray=new Uint8Array(CW*CH);
+    const g=this.gray;
+    for(let i=0,p=0;i<g.length;i++,p+=4) g[i]=(d[p]*299+d[p+1]*587+d[p+2]*114)/1000;
+
+    const votes=Object.create(null);
+    let best=null,bv=0;
+    const cast=code=>{
+      if(!code) return;
+      const n=(votes[code]||0)+1; votes[code]=n;
+      if(n>bv){bv=n;best=code;}
+    };
+    // yatay taramalar
+    const ROWS=15;
+    for(let i=0;i<ROWS;i++){
+      const y=Math.min(CH-1,Math.round(CH*(i+0.5)/ROWS));
+      cast(decodeLine(g.subarray(y*CW,y*CW+CW),CW));
     }
-    return null;
+    // dikey taramalar — telefon yan çevrildiğinde barkod dikey durur
+    if(!this.col||this.col.length!==CH) this.col=new Uint8Array(CH);
+    const col=this.col, COLS=11;
+    for(let i=0;i<COLS;i++){
+      const x=Math.min(CW-1,Math.round(CW*(i+0.5)/COLS));
+      for(let y=0;y<CH;y++) col[y]=g[y*CW+x];
+      cast(decodeLine(col,CH));
+    }
+    return best?{code:best,votes:bv}:null;
   },
-  hit(code){
-    if(code===this.cand){this.hits++;}else{this.cand=code;this.hits=1;}
-    const need=this.det?1:2;
-    if(this.hits>=need){beep();vibrate();this.done(code);}
-    else{$('#camMsg',this.el).textContent='Okunuyor: '+code;}
+  /* Aynı karede iki bağımsız tarama satırı aynı kodu verirse doğrulanmış sayılır;
+     tek satırdan gelen okuma bir sonraki kareyle teyit edilir. */
+  hit(code,votes,trusted){
+    if(code===this.cand) this.hits+=votes; else {this.cand=code;this.hits=votes;}
+    if(trusted||this.hits>=2){beep();vibrate();this.done(code);}
+    else if(this.el) $('#camMsg',this.el).textContent='Okunuyor: '+code;
   },
   done(code){const cb=this.cb;this.close();cb&&cb(String(code).trim());},
   stopStream(){clearTimeout(this.timer);if(this.stream){this.stream.getTracks().forEach(t=>t.stop());this.stream=null;}},
@@ -1655,7 +1738,8 @@ function renderAyar(){
     <div class="eyebrow" style="margin-bottom:10px">Barkod okuma hakkında</div>
     <p style="font-size:13.5px;line-height:1.7;margin:0;color:var(--muted)">
     Kamera erişimi için sayfanın <b>https://</b> adresinden veya <b>localhost</b> üzerinden açılması gerekir; telefonda dosyayı doğrudan açarsanız tarayıcı kamerayı engeller.
-    Chrome ve Android'de tarayıcının kendi barkod motoru kullanılır (hızlı mod). Safari ve diğerlerinde program EAN-13/EAN-8 barkodlarını kendi çözer (uyumluluk modu) — market ürünlerinin neredeyse tamamı bu formattadır.
+    Chrome ve Android'de tarayıcının kendi barkod motoru kullanılır (hızlı mod). Safari ve diğerlerinde program <b>EAN-13</b> ve <b>EAN-8</b> barkodlarını kendi çözer (uyumluluk modu) — market ürünlerinin neredeyse tamamı bu formattadır.
+    Barkodu yatay, dikey ya da baş aşağı tutabilirsiniz; kare hem yatay hem dikey taranır. Gölge ve eşit olmayan ışık altında da okur, ama net odak şarttır: telefonu ürüne 10-15 cm yaklaştırıp sabit tutun.
     USB veya bluetooth lazer okuyucu takarsanız da çalışır: okuyucu klavye gibi yazdığı için barkod kutusu odaktayken doğrudan sepete düşer.</p>
   </div>
   <div class="card pad" style="margin-top:18px">
