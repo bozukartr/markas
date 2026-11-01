@@ -1,98 +1,89 @@
-# markas
+# Padişah Hayatı
 
-React + Tailwind CSS arayüzü, ASP.NET Core 10 Controller API ve SQLite ile tek mağazalık, geliştirilmeye hazır market MVP'si.
+Yazı tabanlı, mobil uygulama hissi veren bir **Osmanlı padişahı yaşam ve devlet simülasyonu**.
+Saf HTML, CSS ve JavaScript ile yazılmıştır; derleme, sunucu ya da kütüphane gerektirmez.
 
-## Başlatma
+## Çalıştırma
 
-Gereksinimler: Node.js 22.12+ (veya 24 LTS), .NET 10 SDK.
+- `index.html` dosyasını bir tarayıcıda açmanız yeterli (klasik `<script>` etiketleri kullanıldığı için `file://` ile de çalışır).
+- Ya da bir yerel sunucu ile: `python3 -m http.server` → `http://localhost:8000`
+- Telefonda tarayıcı menüsünden **"Ana ekrana ekle"** derseniz tam ekran, uygulama gibi açılır (PWA manifest'i hazır).
+- Oyun her ay otomatik kaydedilir (`localStorage`); ayrıca 3 elle kayıt yuvası vardır.
 
-```sh
-cd frontend
-npm ci
-npm run build
-cd ../backend
-dotnet run
+## Oynanış
+
+Her tur bir aydır. Her ay sınırlı **vakit**iniz (genelde 4) vardır; şahsi faaliyetler vakit harcar, devlet kararları ise para ve sonuçlarla ödenir.
+
+| Ekran | Neler yapılır |
+|---|---|
+| **Saray** | Padişahın sağlığı, keyfi, stresi, takvası ve 5 yeteneği (İdare, Askerlik, Diplomasi, Entrika, İlim). 16 şahsi faaliyet: av, tebdil-i kıyafet, arzuhal dinleme, Cuma selamlığı, kütüphane, şiir/hat/musiki, idman, hamam, ziyafet, eyalet teftişi, müneccimbaşı, hekimbaşı… |
+| **Divan** | 12 makam (Sadrazam, vezirler, Defterdar, Şeyhülislam, Kaptan-ı Derya, Yeniçeri Ağası, Bostancıbaşı…). Atama, azil, müsadere, sürgün, Yedikule, siyaseten katl. Divan toplantısı ve gündem. Vergi oranı, akçe tağşişi/ıslahı, Galata sarraflarından borç. 19 kanun, 8 ferman, veraset usulü. 16 yapı türüyle inşaat. |
+| **Harem** | Valide Sultan, haseki ve cariyeler; ziyaret, mertebe, nikâh, azat. Doğan çocuklara isim koyma, eğitim (odak + hoca), sancağa çıkarma, kafes, veliaht ilanı, kızları paşalarla evlendirme. Hanedan silsilesi. |
+| **Ordu** | Yeniçeri, sipahi, azap, Nizam-ı Cedid, top ve gemi. Asker toplama/terhis, talim, bahşiş, esame yoklaması. Sefer planlama (hedef, kuvvet kaydırıcıları, serdar), meydan muharebesinde taktik seçimi, kuşatmada hücum/aman/sabır. Kış yıpratması. |
+| **Dünya** | Dönemine göre 7–9 devlet: elçi, hediye, ticaret ahdi, ittifak, haraç talebi, tehdit, casus, savaş ilanı, şartlı barış teklifi. Eyaletler: vali, yatırım, muafiyet, tenkil, müfettiş. Şematik harita. |
+
+Ayrıca: 100'ü aşkın olay (felaketler, isyanlar, entrikalar, harem çekişmeleri, döneme özgü tarihi durumlar), komplo sistemi (darbe, zehir, isyan), padişahın ölümünde veraset ile oyunun yeni padişahla sürmesi, yaptıklarınıza göre kazanılan lakaplar (Fâtih, Kanunî, Yavuz, Âdil, Deli…), vakanüvis (kronik) ve istatistikler.
+
+### Dönemler
+1. **Fetih Arifesi (1451)** – Edirne'den Kostantiniyye'ye
+2. **Muhteşem Yüzyıl (1520)** – zirvedeki imparatorluk
+3. **Kafes Devri (1603)** – Celâlîler, şişmiş ocak, boş hazine
+4. **Nizam-ı Cedid (1789)** – ıslahat ya da çöküş
+
+## Dosya yapısı
+
+```
+index.html               Uygulama kabuğu, betik sırası
+manifest.webmanifest     PWA ayarları
+assets/icon.svg          Uygulama simgesi
+css/
+  base.css               Değişkenler, sıfırlama, düğmeler
+  layout.css             Üst çubuk, sekmeler, alt sayfa, pencereler
+  components.css         Kartlar, listeler, çubuklar, olay parşömeni
+  screens.css            Ekranlara özgü stiller
+js/
+  core/   util.js (yardımcılar, Türkçe ek uyumu), icons.js (SVG ikonlar), fx.js (etki sistemi)
+  data/   names, traits, offices, world (dönem/devlet/eyalet), buildings, laws
+  systems/
+    chars.js       Karakter oluşturma, yaşlanma, ölüm, eğitim
+    state.js       Yeni oyun kurulumu, makam atama
+    economy.js     Bütçe, eyaletler, kanunlar, inşaat, gösterge sürüklenmesi
+    court.js       Atama/azil/idam, komplolar, Divan gündemi
+    harem.js       Harem, doğum, hanedan, veraset, lakap
+    military.js    Ordu gücü, sefer, muharebe, kuşatma, düşman saldırıları
+    diplomacy.js   İlişkiler, savaş/barış, yapay zekâ
+    events.js      Olay motoru
+    activities.js  Şahsi faaliyetler ve karşılaşma olayları
+    turn.js        Ay sonu işleyişi, kronik
+    save.js        Kayıt/yükleme, ayarlar
+  events/  ev_court, ev_people, ev_harem, ev_war, ev_world, ev_era (olay tanımları)
+  ui/
+    ui.js          Kabuk, sekmeler, alt sayfa/pencere, olay akışı, ay raporu
+    portrait.js    Prosedürel SVG portreler, armalar, tuğra
+    charsheet.js   Kişi sayfası ve tüm kişi etkileşimleri
+    screens/       palace, divan, harem, army, world, chronicle
+    menu.js, newgame.js
+  main.js          Başlangıç
 ```
 
-http://127.0.0.1:5080 adresini açın. Derlenen arayüz API'nin `wwwroot` klasöründen sunulur; internet gerekmez. İlk çalıştırmada sekiz örnek ürün eklenir, ciro sıfırdan başlar. Veritabanı `backend/store.db` dosyasındadır. Silmeyin; satışları ve bekleyen aktarım kuyruğunu içerir.
+## Geliştirici notları
 
-Geliştirme sırasında iki terminalde `dotnet run --project backend` ve `cd frontend && npm run dev` çalıştırın. Vite, `/api` isteklerini yerel API'ye yönlendirir. Ciro, stok ve son satışlar API'den dört saniyede bir yenilenir. Aktif kasa, tek yerel hizmetin erişilebilirliğidir; çoklu terminal keşfi değildir.
+- Tüm modüller `window.PH` ad alanında toplanır; betik sırası `index.html` içindedir.
+- **Stat değişiklikleri** her zaman `PH.fx({ popularity: 5, treasury: -1e6 })` ile yapılır; `PH.FX.run(fn)` bu değişiklikleri toplayıp oyuncuya "etki çipleri" olarak gösterir.
+- **Yeni olay eklemek** için ilgili `js/events/ev_*.js` dosyasına `E.reg({...})` ekleyin:
+  ```js
+  E.reg({
+    id: 'ornek', cat: 'halk', icon: 'people', title: 'Başlık',
+    w: 3, cd: 12,                       // w varsa rastgele olaydır; cd = bekleme (ay)
+    cond: (s) => s.emp.popularity < 50, // isteğe bağlı koşul
+    setup: (s) => ({ p: 'bursa' }),     // isteğe bağlı bağlam (yalnızca kimlikler)
+    text: (s, ctx) => `Metin...`,
+    choices: [
+      { t: 'Seçenek', hint: 'İpucu', req: E.req.money(1e6), run: (s, ctx) => { PH.fx({ treasury: -1e6, popularity: 4 }); return 'Sonuç metni'; } },
+    ],
+  });
+  ```
+- Arayüz eylemleri `data-act="eylemAdi"` öznitelikleriyle tek bir tıklama dağıtıcısından `PH.A.eylemAdi(dataset)` fonksiyonuna gider.
+- İsimlere ek getirirken `U.gen / U.acc / U.dat / U.loc / U.abl` yardımcılarını kullanın (ör. `U.gen('Ahmed Paşa')` → `Ahmed Paşa'nın`).
 
-## Sade dosya yapısı
-
-```text
-frontend/
-  src/main.jsx                # Dashboard, ürün formu, tablo ve satış penceresi
-  src/style.css               # Tailwind + responsive tasarım
-  public/favicon.svg
-  vite.config.js              # API proxy; çıktı backend/wwwroot
-backend/
-  Controllers/
-    ProductsController.cs     # Listele, getir, ekle, güncelle, sil
-    SalesController.cs        # Atomik satış, stok düşümü ve günlük özet
-    SyncController.cs         # Bulutta idempotent satış kabulü
-  Models.cs                   # Ürün ve satış sözleşmeleri
-  StoreDb.cs                  # SQLite modeli ve benzersiz anahtarlar
-  SyncWorker.cs               # Kalıcı kuyruk ve artan beklemeli yeniden deneme
-  Program.cs                  # DI, başlangıç verisi ve statik arayüz
-docs/offline-first.md          # Tasarım, kod örnekleri ve sınırlar
-scripts/smoke.ps1              # Gerçek API + SQLite entegrasyon kontrolü
-```
-
-## API
-
-| Yöntem | Yol | İşlem |
-|---|---|---|
-| GET | /api/products | Aktif ürünler |
-| GET | /api/products/{id} | Ürün detayı |
-| POST | /api/products | Ürün ekle |
-| PUT | /api/products/{id} | Ürün güncelle (`version` gerekli) |
-| DELETE | /api/products/{id}?version=... | Mantıksal silme |
-| POST | /api/sales | Satış kaydet (`id`, `productId`, `quantity`) |
-| GET | /api/sales/summary | Günlük ciro, son satışlar, kuyruk |
-| POST | /api/sync | Bulut modunda satış kabulü (`X-Sync-Key`) |
-
-Para tamsayı kuruş olarak saklanır: `priceCents: 4250` = 42,50 ₺. Ürün değişikliklerinde `version` GUID'si eskiyse API 409 döndürür. Barkod benzersizdir; silinen ürünün barkodu da ayrılmış kalır. MVP'de satış bir ürün satırıdır; ödeme altyapısı, sepet, iade ve mali fiş entegrasyonu bulunmaz.
-
-## İki API ile bulut senkronizasyonu
-
-Bulut örneğini **ayrı terminalde ve ayrı SQLite dosyasıyla** başlatın (PowerShell):
-
-```powershell
-$env:Mode='Cloud'
-$env:StoreId='demo-store'
-$env:Cloud__ApiKey='yerel-deneme-icin-ayni-uzun-anahtar'
-$env:ConnectionStrings__Store='Data Source=cloud.db'
-$env:Urls='http://127.0.0.1:5090'
-dotnet run --project backend
-```
-
-Mağaza örneği, ayrı terminal:
-
-```powershell
-$env:Mode='Store'
-$env:StoreId='demo-store'
-$env:Cloud__Url='http://127.0.0.1:5090'
-$env:Cloud__ApiKey='yerel-deneme-icin-ayni-uzun-anahtar'
-$env:ConnectionStrings__Store='Data Source=store.db'
-$env:Urls='http://127.0.0.1:5080'
-dotnet run --project backend
-```
-
-Bulut örneğini kapatın, yerel arayüzden satış yapın; stok ve ciro hemen değişir, bekleyen satış sayısı artar. Bulutu açınca kuyruk kendiliğinden boşalır. Normal başarılı döngü 2 saniye; hatalı gönderim aralığı 4–60 saniye artar. Kimlik doğrulama veya veri çakışması hataları da kuyrukta kalır; logları kontrol edin.
-
-## Doğrulama
-
-```powershell
-pwsh -File scripts/smoke.ps1
-```
-
-Test geçici, birbirinden ayrı SQLite dosyaları ve 5180/5190 portlarını kullanır. CRUD, veri doğrulama, eski sürüm çakışması, yetersiz stok, tekrar satış, yerel hizmet yeniden başladıktan sonra kuyruk, buluta aktarım ve tekrar kabulünü kontrol eder. `-DotnetPath` ile SDK yürütülebilir dosyası belirtilebilir.
-
-## MVP sınırları
-
-Bu bir üretim SaaS dağıtımı değildir: tek mağaza/tek yerel API kapsamındadır. API varsayılan olarak yalnızca loopback dinler. Dış ağa açmadan önce kullanıcı oturumu, rol/tenant izolasyonu, mağazaya özel cihaz kimlikleri, HTTPS, denetim kayıtları ve yedekleme ekleyin. Bulut denemesinde paylaşılan anahtar çevre değişkenindedir; depoya anahtar koymayın. Mağaza dışı senkronizasyon anahtarı 403 alır.
-
-SQLite yerel API sürecinde çalışır; tarayıcı belleği veya localStorage satış veritabanı değildir. API/bilgisayar kapanırsa yeni satış yapılamaz; kalıcı kayıtlar yeniden açılınca korunur. İnternet kesildiğinde hem arayüz hem API mağaza bilgisayarından sunulduğu için çalışmaya devam eder. Kart ödeme terminalinin çevrimdışı davranışı bu uygulamanın kapsamı dışındadır.
-
-Ürün kataloğu/fiyat değişiklikleri buluta gönderilmez; örnek senkronizasyon, kesinleşmiş satışların tek yönlü aktarımıdır. Çoklu cihaz stok birleştirmesi ve çift yönlü katalog senkronizasyonu ayrı bir geliştirmedir. Ayrıntı ve kod: [Offline-first](docs/offline-first.md).
+> Tarihî dönemlerden esinlenen kurgusal bir simülasyondur; oynadığınız padişah ve olayların sonuçları hayal ürünüdür.
