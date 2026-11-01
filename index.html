@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#140e0b">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Padişah Hayatı">
+  <meta name="description" content="Padişah Hayatı — yazı tabanlı Osmanlı padişahı yaşam ve devlet simülasyonu.">
+  <title>Padişah Hayatı</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="assets/icon.svg">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/screens.css">
+</head>
+<body>
+  <div id="app" class="app"></div>
+  <div id="sheet-root"></div>
+  <div id="modal-root"></div>
+  <div id="toast-root"></div>
+
+  <!-- Çekirdek -->
+  <script src="js/core/util.js"></script>
+  <script src="js/core/icons.js"></script>
+
+  <!-- Veri -->
+  <script src="js/data/names.js"></script>
+  <script src="js/data/traits.js"></script>
+  <script src="js/data/offices.js"></script>
+  <script src="js/data/world.js"></script>
+  <script src="js/data/buildings.js"></script>
+  <script src="js/data/laws.js"></script>
+
+  <!-- Sistemler -->
+  <script src="js/core/fx.js"></script>
+  <script src="js/systems/chars.js"></script>
+  <script src="js/systems/state.js"></script>
+  <script src="js/systems/economy.js"></script>
+  <script src="js/systems/court.js"></script>
+  <script src="js/systems/harem.js"></script>
+  <script src="js/systems/military.js"></script>
+  <script src="js/systems/diplomacy.js"></script>
+  <script src="js/systems/events.js"></script>
+
+  <!-- Olaylar -->
+  <script src="js/events/ev_court.js"></script>
+  <script src="js/events/ev_people.js"></script>
+  <script src="js/events/ev_harem.js"></script>
+  <script src="js/events/ev_war.js"></script>
+  <script src="js/events/ev_world.js"></script>
+  <script src="js/events/ev_era.js"></script>
+
+  <script src="js/systems/activities.js"></script>
+  <script src="js/systems/turn.js"></script>
+  <script src="js/systems/save.js"></script>
+
+  <!-- Arayüz -->
+  <script src="js/ui/portrait.js"></script>
+  <script src="js/ui/ui.js"></script>
+  <script src="js/ui/charsheet.js"></script>
+  <script src="js/ui/screens/palace.js"></script>
+  <script src="js/ui/screens/divan.js"></script>
+  <script src="js/ui/screens/harem.js"></script>
+  <script src="js/ui/screens/army.js"></script>
+  <script src="js/ui/screens/world.js"></script>
+  <script src="js/ui/screens/chronicle.js"></script>
+  <script src="js/ui/menu.js"></script>
+  <script src="js/ui/newgame.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>

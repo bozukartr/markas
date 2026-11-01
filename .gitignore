@@ -1,8 +1,4 @@
+.DS_Store
+Thumbs.db
 node_modules/
-dist/
-bin/
-obj/
-*.db*
-.env
-.local/
-backend/wwwroot/
+*.log
